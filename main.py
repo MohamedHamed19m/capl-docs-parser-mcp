@@ -1,8 +1,26 @@
 import re
+import logging
 from dataclasses import dataclass, field
 from typing import List, Optional
 from pathlib import Path
 
+# ============================================================
+# Setup Logging
+# ============================================================
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+logging.basicConfig(
+    level=logging.INFO,  # Change to DEBUG for detailed tracing
+    format=LOG_FORMAT,
+    handlers=[
+        logging.FileHandler("vector_doc_parser.log", mode='w', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("VectorDocParser")
+
+# ============================================================
+# Data Classes
+# ============================================================
 
 @dataclass
 class Parameter:
@@ -51,6 +69,10 @@ class FunctionInfo:
         return "\n".join(output)
 
 
+# ============================================================
+# Main Parser Class
+# ============================================================
+
 class VectorDocParser:
     """Parser for Vector documentation markdown files"""
     
@@ -59,119 +81,186 @@ class VectorDocParser:
     
     def parse_file(self, file_path: str) -> Optional[FunctionInfo]:
         """Parse a Vector documentation markdown file"""
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        logger.debug(f"Opening file: {file_path}")
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            logger.error(f"Failed to open {file_path}: {e}")
+            return None
         
         return self.parse_content(content)
-    
+        
     def parse_content(self, content: str) -> Optional[FunctionInfo]:
         """Parse markdown content and extract function information"""
         lines = content.split('\n')
-        
         func_info = FunctionInfo(function_name="")
+        
+        logger.debug("Starting content parsing...")
+        
         current_section = None
         example_lines = []
         in_code_block = False
+        in_syntax_code_block = False
         param_buffer = []
         return_buffer = []
+        syntax_buffer = []
         
         for i, line in enumerate(lines):
-            # Extract function name from header
-            if line.startswith('# ') and not func_info.function_name:
-                func_info.function_name = line[2:].strip()
-                continue
+            logger.debug(f"Line {i}: {line.strip()}")
             
-            # Extract "Valid for" information
-            if 'Valid for' in line and '[Valid for]' in line:
-                # Look for the next line or same line for the actual info
-                valid_match = re.search(r'Valid for.*?:\s*([^•]+)', line)
-                if valid_match:
-                    func_info.valid_for = valid_match.group(1).strip()
-                elif i + 1 < len(lines):
-                    func_info.valid_for = lines[i + 1].strip()
-                continue
-            
-            # Detect sections
-            if line.startswith('## '):
-                current_section = line[3:].strip()
-                
-                # Save buffered parameters when leaving Parameters section
-                if param_buffer and current_section != "Parameters":
-                    func_info.parameters.extend(param_buffer)
-                    param_buffer = []
-                
-                # Save buffered return values when leaving Return Values section
-                if return_buffer and current_section != "Return Values":
-                    func_info.return_values.extend(return_buffer)
-                    return_buffer = []
-                
-                continue
-            
-            # Parse based on current section
-            if current_section == "Function Syntax" or current_section == "Method Syntax":
-                # Extract function syntax
-                if line.strip().startswith('-') and '`' in line:
-                    syntax = re.search(r'`([^`]+)`', line)
-                    if syntax:
-                        func_info.syntax_forms.append(syntax.group(1))
-            
-            elif current_section == "Description":
-                # Collect description text
-                if line.strip() and not line.startswith('#') and not line.startswith('['):
-                    if func_info.description:
-                        func_info.description += " " + line.strip()
-                    else:
-                        func_info.description = line.strip()
-            
-            elif current_section == "Parameters":
-                # Parse parameters (format: - **name**: description)
-                param_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*:\s*(.+)', line)
-                if param_match:
-                    param_name = param_match.group(1).strip()
-                    param_desc = param_match.group(2).strip()
-                    param_buffer.append(Parameter(name=param_name, description=param_desc))
-                elif param_buffer and line.strip() and not line.startswith('-'):
-                    # Continue previous parameter description
-                    param_buffer[-1].description += " " + line.strip()
-            
-            elif current_section == "Return Values":
-                # Parse return values
-                ret_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*:\s*(.+)', line)
-                if ret_match:
-                    ret_value = ret_match.group(1).strip()
-                    ret_desc = ret_match.group(2).strip()
-                    return_buffer.append(f"{ret_value}: {ret_desc}")
-                elif line.strip().startswith('-'):
-                    # Alternative format without bold
-                    return_buffer.append(line.strip()[1:].strip())
-                elif return_buffer and line.strip() and not line.startswith('-'):
-                    # Continue previous return value description
-                    return_buffer[-1] += " " + line.strip()
-            
-            elif current_section == "Example":
-                # Detect code blocks
-                if line.strip().startswith('```'):
-                    in_code_block = not in_code_block
-                    if not in_code_block and example_lines:
-                        # End of code block
-                        func_info.example = '\n'.join(example_lines)
+            try:
+                # Extract function name from header
+                if line.startswith('# ') and not func_info.function_name:
+                    func_info.function_name = line[2:].strip()
+                    logger.debug(f"Found function name: {func_info.function_name}")
                     continue
                 
-                if in_code_block:
-                    example_lines.append(line)
+                # Extract "Valid for" information
+                if 'Valid for' in line and '[Valid for]' in line:
+                    valid_match = re.search(r'Valid for.*?:\s*([^•]+)', line)
+                    if valid_match:
+                        func_info.valid_for = valid_match.group(1).strip()
+                    elif i + 1 < len(lines):
+                        func_info.valid_for = lines[i + 1].strip()
+                    logger.debug(f"Valid for: {func_info.valid_for}")
+                    continue
+                
+                # Detect section headers
+                if line.startswith('## '):
+                    current_section = line[3:].strip()
+                    logger.debug(f"Switched section -> {current_section}")
+                    
+                    # Save buffered data when leaving a section
+                    if param_buffer and current_section != "Parameters":
+                        func_info.parameters.extend(param_buffer)
+                        param_buffer = []
+                    if return_buffer and current_section != "Return Values":
+                        func_info.return_values.extend(return_buffer)
+                        return_buffer = []
+                    if syntax_buffer and current_section not in ["Function Syntax", "Method Syntax"]:
+                        func_info.syntax_forms.extend(syntax_buffer)
+                        syntax_buffer = []
+                    continue
+                
+                # -------------------------
+                # Function Syntax / Method Syntax
+                # -------------------------
+                if current_section in ["Function Syntax", "Method Syntax"]:
+                    # Toggle fenced code block for syntax
+                    if line.strip().startswith('```'):
+                        in_syntax_code_block = not in_syntax_code_block
+                        logger.debug(f"Toggled syntax block: {in_syntax_code_block}")
+                        # If we just closed the block, flush nothing here (final flush below)
+                        continue
+
+                    # Inside a fenced syntax code block
+                    if in_syntax_code_block and line.strip():
+                        clean_line = line.strip()
+                        if clean_line and not clean_line.startswith('//'):
+                            syntax_buffer.append(clean_line)
+                            logger.debug(f"Added syntax line (code block): {clean_line}")
+
+                    # Bullet items that include an inline code span: - `syntax`
+                    elif line.strip().startswith('-') and '`' in line:
+                        syntax = re.search(r'`([^`]+)`', line)
+                        if syntax:
+                            func_info.syntax_forms.append(syntax.group(1).strip())
+                            logger.debug(f"Added inline syntax: {syntax.group(1).strip()}")
+
+                    # Markdown link style or bracketed text: [syntax](url) or [syntax]
+                    else:
+                        # find the first [...] occurrence and take its content
+                        bracket_match = re.search(r'\[([^\]]+)\]', line)
+                        if bracket_match:
+                            syntax_text = bracket_match.group(1).strip()
+                            # strip surrounding backticks if present inside the brackets
+                            syntax_text = syntax_text.strip('`').strip()
+                            # avoid picking up simple navigation links that don't look like syntax
+                            # a heuristic: syntax likely contains a space and/or parentheses or a type name
+                            if syntax_text:
+                                # If it looks like a syntax line (contains '(' or ' ' with a type) add it
+                                if '(' in syntax_text or ' ' in syntax_text or '.' in syntax_text:
+                                    syntax_buffer.append(syntax_text)
+                                    logger.debug(f"Added bracket/link-style syntax: {syntax_text}")
+                                else:
+                                    logger.debug(f"Ignored bracket content (likely navigation): {syntax_text}")
+                
+                # -------------------------
+                # Description Section
+                # -------------------------
+                elif current_section == "Description" and line.strip():
+                    if not line.startswith('#') and not line.startswith('['):
+                        if func_info.description:
+                            func_info.description += " " + line.strip()
+                        else:
+                            func_info.description = line.strip()
+                
+                # -------------------------
+                # Parameters Section
+                # -------------------------
+                elif current_section == "Parameters":
+                    param_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*\s*(.+)', line)
+                    if param_match:
+                        name, desc = param_match.groups()
+                        desc = re.sub(r'^[:\s]+', '', desc.strip())
+                        param_buffer.append(Parameter(name.strip(), desc))
+                        logger.debug(f"Added parameter: {name.strip()} -> {desc}")
+                    elif line.strip() and param_buffer:
+                        param_buffer[-1].description += " " + line.strip()
+                
+                # -------------------------
+                # Return Values Section
+                # -------------------------
+                elif current_section == "Return Values":
+                    ret_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*\s*(.+)', line)
+                    if ret_match:
+                        val, desc = ret_match.groups()
+                        desc = re.sub(r'^[:\s]+', '', desc.strip())
+                        return_buffer.append(f"{val.strip()}: {desc}")
+                        logger.debug(f"Added return value: {val.strip()} -> {desc}")
+                    elif line.strip().startswith('-') and ':' in line:
+                        return_buffer.append(line.strip()[1:].strip())
+                    elif line.strip() and return_buffer:
+                        return_buffer[-1] += " " + line.strip()
+                
+                # -------------------------
+                # Example Section
+                # -------------------------
+                elif current_section == "Example":
+                    if line.strip().startswith('```'):
+                        in_code_block = not in_code_block
+                        logger.debug(f"Toggled example block: {in_code_block}")
+                        if not in_code_block and example_lines:
+                            func_info.example = '\n'.join(example_lines)
+                        continue
+                    if in_code_block:
+                        example_lines.append(line)
+            
+            except Exception as e:
+                logger.exception(f"Error processing line {i}: {line}")
         
-        # Save any remaining buffered data
+        # -------------------------
+        # Final cleanup
+        # -------------------------
         if param_buffer:
             func_info.parameters.extend(param_buffer)
         if return_buffer:
             func_info.return_values.extend(return_buffer)
+        if syntax_buffer:
+            func_info.syntax_forms.extend(syntax_buffer)
         
-        # Return None if no meaningful data was extracted
         if not func_info.function_name or not func_info.syntax_forms:
+            logger.warning("Incomplete function info — skipping.")
             return None
         
+        logger.info(f"Parsed function: {func_info.function_name}")
         return func_info
 
+
+# ============================================================
+# Batch Parsing Utility
+# ============================================================
 
 def parse_directory(directory_path: str) -> List[FunctionInfo]:
     """Parse all markdown files in a directory"""
@@ -179,19 +268,27 @@ def parse_directory(directory_path: str) -> List[FunctionInfo]:
     results = []
     
     path = Path(directory_path)
+    logger.info(f"Scanning directory: {path}")
+    
     for md_file in path.glob('**/*.md'):
         try:
+            logger.debug(f"Parsing file: {md_file}")
             func_info = parser.parse_file(str(md_file))
             if func_info:
                 results.append(func_info)
-                print(f"✓ Parsed: {md_file.name} -> {func_info.function_name}")
+                logger.info(f"✓ Parsed: {md_file.name} -> {func_info.function_name}")
+            else:
+                logger.warning(f"No data extracted from {md_file.name}")
         except Exception as e:
-            print(f"✗ Error parsing {md_file.name}: {e}")
+            logger.exception(f"✗ Error parsing {md_file.name}")
     
     return results
 
 
-# Example usage
+# ============================================================
+# CLI Entry Point
+# ============================================================
+
 if __name__ == "__main__":
     import sys
     
@@ -205,21 +302,19 @@ if __name__ == "__main__":
     path = Path(target_path)
     
     if path.is_file():
-        # Parse single file
         parser = VectorDocParser()
         func_info = parser.parse_file(str(path))
         if func_info:
             print(func_info)
         else:
-            print(f"Failed to parse {path}")
+            logger.error(f"Failed to parse {path}")
     
     elif path.is_dir():
-        # Parse directory
         functions = parse_directory(str(path))
-        print(f"\nParsed {len(functions)} functions:")
+        logger.info(f"Parsed {len(functions)} functions in total.")
         for func in functions:
             print("\n" + "="*80)
             print(func)
     
     else:
-        print(f"Error: {target_path} is not a valid file or directory")
+        logger.error(f"Invalid path: {target_path}")
