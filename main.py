@@ -112,7 +112,13 @@ class VectorDocParser:
             try:
                 # Extract function name from header
                 if line.startswith('# ') and not func_info.function_name:
-                    func_info.function_name = line[2:].strip()
+                    header = line[2:].strip()
+                    # Handle "name: description" format
+                    if ': ' in header and '<' in header and '>' in header:
+                        func_info.function_name = header.split(':')[0].strip()
+                    # Handle plain function name
+                    else:
+                        func_info.function_name = header
                     logger.debug(f"Found function name: {func_info.function_name}")
                     continue
                 
@@ -138,7 +144,7 @@ class VectorDocParser:
                     if return_buffer and current_section != "Return Values":
                         func_info.return_values.extend(return_buffer)
                         return_buffer = []
-                    if syntax_buffer and current_section not in ["Function Syntax", "Method Syntax"]:
+                    if syntax_buffer and current_section not in ["Function Syntax", "Method Syntax", "Selectors"]:
                         func_info.syntax_forms.extend(syntax_buffer)
                         syntax_buffer = []
                     continue
@@ -146,7 +152,7 @@ class VectorDocParser:
                 # -------------------------
                 # Function Syntax / Method Syntax
                 # -------------------------
-                if current_section in ["Function Syntax", "Method Syntax"]:
+                if current_section in ["Function Syntax", "Method Syntax", "Selectors"]:
                     # Toggle fenced code block for syntax
                     if line.strip().startswith('```'):
                         in_syntax_code_block = not in_syntax_code_block
@@ -160,31 +166,42 @@ class VectorDocParser:
                         if clean_line and not clean_line.startswith('//'):
                             syntax_buffer.append(clean_line)
                             logger.debug(f"Added syntax line (code block): {clean_line}")
-
-                    # Bullet items that include an inline code span: - `syntax`
-                    elif line.strip().startswith('-') and '`' in line:
-                        syntax = re.search(r'`([^`]+)`', line)
-                        if syntax:
-                            func_info.syntax_forms.append(syntax.group(1).strip())
-                            logger.debug(f"Added inline syntax: {syntax.group(1).strip()}")
+                    
+                    # Bullet items that include a code span: - `syntax` or - syntax
+                    elif line.strip().startswith('-'):
+                        # Try to extract from code span first
+                        if '`' in line:
+                            # Extract all code spans from the line
+                            syntax_spans = re.findall(r'`([^`]+)`', line)
+                            for syntax_text in syntax_spans:
+                                if any(type_hint in syntax_text for type_hint in ['byte', 'word', 'int', 'dword', 'qword', 'char']):
+                                    syntax_buffer.append(syntax_text.strip())
+                                    logger.debug(f"Added inline code syntax: {syntax_text.strip()}")
+                        # If no code span but line looks like syntax (has type hints or angle brackets), extract after dash
+                        elif any(type_hint in line for type_hint in ['byte', 'word', 'int', 'dword', 'qword', 'char']) or ('<' in line and '>' in line):
+                            clean_line = line.strip('- ').strip()
+                            if clean_line.startswith('`'):  # Handle any remaining backticks
+                                clean_line = clean_line.strip('`')
+                            syntax_buffer.append(clean_line)
+                            logger.debug(f"Added bullet point syntax: {clean_line}")
 
                     # Markdown link style or bracketed text: [syntax](url) or [syntax]
                     else:
                         # find the first [...] occurrence and take its content
-                        bracket_match = re.search(r'\[([^\]]+)\]', line)
+                        bracket_match = re.search(r'\[(.*)\]', line)  # Greedy to handle nested []
                         if bracket_match:
                             syntax_text = bracket_match.group(1).strip()
                             # strip surrounding backticks if present inside the brackets
                             syntax_text = syntax_text.strip('`').strip()
                             # avoid picking up simple navigation links that don't look like syntax
-                            # a heuristic: syntax likely contains a space and/or parentheses or a type name
-                            if syntax_text:
-                                # If it looks like a syntax line (contains '(' or ' ' with a type) add it
-                                if '(' in syntax_text or ' ' in syntax_text or '.' in syntax_text:
-                                    syntax_buffer.append(syntax_text)
-                                    logger.debug(f"Added bracket/link-style syntax: {syntax_text}")
-                                else:
-                                    logger.debug(f"Ignored bracket content (likely navigation): {syntax_text}")
+                            # a heuristic: syntax likely contains parentheses, a dot, or a space with type hints
+                            if syntax_text and ('(' in syntax_text or '.' in syntax_text or 
+                                             any(type_hint in syntax_text for type_hint in 
+                                                 ['byte', 'word', 'int', 'dword', 'qword', 'char'])):
+                                syntax_buffer.append(syntax_text)
+                                logger.debug(f"Added bracket/link-style syntax: {syntax_text}")
+                            else:
+                                logger.debug(f"Ignored bracket content (likely navigation): {syntax_text}")
                 
                 # -------------------------
                 # Description Section
