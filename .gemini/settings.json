@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "vectorDoc_Server": {
+      "command": "python",
+      "args": ["MCP_Server.py"],
+      "cwd": "C:/Users/user/Desktop/test/python_learning/CAPL-Doc-Extractor",
+      "timeout": 30000,
+      "trust": true
+    }
+  },
+
+  "ide": {
+    "hasSeenNudge": true
+  },
+  "general": {
+    "preferredEditor": "vscode"
+  },
+  "security": {
+    "auth": {
+      "selectedType": "oauth-personal"
+    }
+  },
+  "ui": {
+    "theme": "Dracula"
+  }
+}

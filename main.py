@@ -114,11 +114,10 @@ class VectorDocParser:
                 if line.startswith('# ') and not func_info.function_name:
                     header = line[2:].strip()
                     # Handle "name: description" format
-                    if ': ' in header and '<' in header and '>' in header:
+                    if ': ' in header:
                         func_info.function_name = header.split(':')[0].strip()
-                    # Handle plain function name
                     else:
-                        func_info.function_name = header
+                        func_info.function_name = header.split('<')[0].strip()
                     logger.debug(f"Found function name: {func_info.function_name}")
                     continue
                 
@@ -138,13 +137,13 @@ class VectorDocParser:
                     logger.debug(f"Switched section -> {current_section}")
                     
                     # Save buffered data when leaving a section
-                    if param_buffer and current_section != "Parameters":
+                    if param_buffer:
                         func_info.parameters.extend(param_buffer)
                         param_buffer = []
-                    if return_buffer and current_section != "Return Values":
+                    if return_buffer:
                         func_info.return_values.extend(return_buffer)
                         return_buffer = []
-                    if syntax_buffer and current_section not in ["Function Syntax", "Method Syntax", "Selectors"]:
+                    if syntax_buffer:
                         func_info.syntax_forms.extend(syntax_buffer)
                         syntax_buffer = []
                     continue
@@ -217,12 +216,19 @@ class VectorDocParser:
                 # Parameters Section
                 # -------------------------
                 elif current_section == "Parameters":
-                    param_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*\s*(.+)', line)
+                    # Handles "- **name**: description" and "- **type name[]** description"
+                    param_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*\s*:?\s*(.*)', line)
                     if param_match:
                         name, desc = param_match.groups()
-                        desc = re.sub(r'^[:\s]+', '', desc.strip())
+                        # If the name part contains type info, try to extract just the name
+                        # e.g., "byte key[]" -> "key"
+                        name_parts = name.strip().split()
+                        if len(name_parts) > 1:
+                            # Take the last part as the name, e.g., 'key[]' from 'byte key[]'
+                            name = name_parts[-1].replace('[]', '')
+
                         param_buffer.append(Parameter(name.strip(), desc))
-                        logger.debug(f"Added parameter: {name.strip()} -> {desc}")
+                        logger.debug(f"Added parameter: {name.strip()} -> {desc.strip()}")
                     elif line.strip() and param_buffer:
                         param_buffer[-1].description += " " + line.strip()
                 
@@ -230,14 +236,19 @@ class VectorDocParser:
                 # Return Values Section
                 # -------------------------
                 elif current_section == "Return Values":
-                    ret_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*\s*(.+)', line)
+                    # Handles "- **value**: description"
+                    ret_match = re.match(r'^\s*-\s*\*\*([^*]+)\*\*\s*:?\s*(.*)', line)
                     if ret_match:
                         val, desc = ret_match.groups()
-                        desc = re.sub(r'^[:\s]+', '', desc.strip())
-                        return_buffer.append(f"{val.strip()}: {desc}")
-                        logger.debug(f"Added return value: {val.strip()} -> {desc}")
+                        full_desc = f"{val.strip()}: {desc.strip()}"
+                        return_buffer.append(full_desc)
+                        logger.debug(f"Added return value: {full_desc}")
+                    # Handles "- value: description"
                     elif line.strip().startswith('-') and ':' in line:
-                        return_buffer.append(line.strip()[1:].strip())
+                        clean_line = line.strip()[1:].strip()
+                        return_buffer.append(clean_line)
+                        logger.debug(f"Added return value (simple list): {clean_line}")
+                    # Handles multi-line descriptions
                     elif line.strip() and return_buffer:
                         return_buffer[-1] += " " + line.strip()
                 
