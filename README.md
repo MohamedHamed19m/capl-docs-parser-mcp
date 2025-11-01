@@ -75,18 +75,16 @@ The server provides tools for searching and parsing Vector CAPL documentation fr
 
 - **`search_capl_function_docs`**: Searches a directory for Markdown files matching a function name, parses them, and returns structured information for the matches.
 - **`parse_md_file`**: Parses a single specified Markdown file and returns its structured content.
+ 
+ 
+📘 Example CAPL Documentation
 
-### Usage
+If you want to explore additional CAPL function documentation examples or test Markdown files,
+you can refer to the following public repository:
 
-To run the MCP server, execute the `MCP_Server.py` script:
-
-```bash
-python MCP_Server.py
-```
-
-The server will start and be ready to accept tool calls.
-
-
+🔗 Sylphith/capl_docs — AUTOSAR Ethernet IL CAPL Functions
+[https://github.com/Sylphith/capl_docs/blob/main/IP/AUTOSARethIL/CAPLfunctionsAREthILOverview.md]
+This repo contains real-world CAPL .md documentation files that you can use to test or validate the parser.
 ---
 
 *This project is maintained by MohamedHamed19m.*
