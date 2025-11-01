@@ -86,6 +86,5 @@ you can refer to the following public repository:
 [https://github.com/Sylphith/capl_docs/blob/main/IP/AUTOSARethIL/CAPLfunctionsAREthILOverview.md].
 
 This repo contains real-world CAPL .md documentation files that you can use to test or validate the parser.
----
 
 *This project is maintained by MohamedHamed19m.*
