@@ -22,46 +22,50 @@ mcp = FastMCP("VectorDocExtractorServer")
 # Semantic Search Engine Setup
 # -------------------------
 search_engine = MinimalCAPLSearch(cache_dir=".cache")
-index_built = False
+indexed_paths: set = set()
 
-def _build_index_if_needed(docs_path: str = "./inputs", force_rebuild: bool = False) -> Optional[str]:
+def _build_index_if_needed(doc_paths: List[str] = ["./inputs"], force_rebuild: bool = False) -> Optional[str]:
     """
-    Builds the search index from markdown files. Returns an error string on failure.
+    Builds the search index from a list of markdown directories. Returns an error string on failure.
     """
-    global index_built
+    global indexed_paths
     
-    if index_built and not force_rebuild:
-        return None
-
-    # Check if cache is valid and loaded to avoid rebuilding
-    if not force_rebuild and search_engine.vectors is not None:
-        if not index_built:
-            logger.info("✅ Search index was already loaded from cache.")
-            index_built = True
-        return None
-
-    logger.info(f"🔧 Building search index (force_rebuild={force_rebuild})...")
-    try:
-        base_path = Path(docs_path).expanduser().resolve()
-        if not base_path.is_dir():
-            err = f"Documentation directory not found at: {base_path}"
-            logger.error(err)
-            return err
-
-        parsed_docs = parse_directory(str(base_path))
-        if not parsed_docs:
-            logger.warning("No documents were parsed. The index will be empty, but this is not a failure.")
+    requested_paths = set(doc_paths)
+    
+    # Rebuild if paths have changed or if forced
+    if force_rebuild or requested_paths != indexed_paths:
+        logger.info(f"🔧 Building search index for paths: {doc_paths} (force_rebuild={force_rebuild})...")
         
-        search_engine.build_index(parsed_docs, force_rebuild=force_rebuild)
-        index_built = True
-        logger.info("✅ Search index built successfully.")
-        return None
+        all_parsed_docs: List[FunctionInfo] = []
+        try:
+            for path_str in doc_paths:
+                base_path = Path(path_str).expanduser().resolve()
+                if not base_path.is_dir():
+                    err = f"Documentation directory not found at: {base_path}"
+                    logger.error(err)
+                    return err
 
-    except Exception as e:
-        logger.error(f"❌ Failed to build search index: {e}", exc_info=True)
-        index_built = False
-        # Return a detailed error message for debugging
-        return f"Failed to build search index: {type(e).__name__}: {e}"
+                parsed_docs = parse_directory(str(base_path))
+                if parsed_docs:
+                    all_parsed_docs.extend(parsed_docs)
+
+            if not all_parsed_docs:
+                logger.warning("No documents were parsed across all paths. The index will be empty.")
+
+            # Force rebuild in the engine since we are creating a new combined index
+            search_engine.build_index(all_parsed_docs, force_rebuild=True)
+            indexed_paths = requested_paths
+            logger.info("✅ Search index built successfully.")
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ Failed to build search index: {e}", exc_info=True)
+            indexed_paths = set()  # Reset on failure
+            return f"Failed to build search index: {type(e).__name__}: {e}"
+    
+    # If we are here, it means the index is already built for the requested paths
+    logger.info("✅ Search index is already up-to-date.")
+    return None
 
 
 # -------------------------
@@ -88,7 +92,7 @@ def function_info_to_dict(fi: FunctionInfo) -> Dict[str, Any]:
 )
 def semantic_search_capl_docs(
     query: str,
-    docs_path: str = "./inputs",
+    doc_paths: List[str] = ["./inputs"],
     top_k: int = 5,
     min_score: float = 0.1,
     force_rebuild_index: bool = False
@@ -98,17 +102,17 @@ def semantic_search_capl_docs(
     that are most relevant to the user's query.
 
     :param query: Natural language search query (e.g., "how to send a CAN message").
-    :param docs_path: Directory containing .md files to search and index.
+    :param doc_paths: A list of directories containing .md files to search and index.
     :param top_k: The number of top matching chunks to return.
     :param min_score: The minimum relevance score for a result to be included.
     :param force_rebuild_index: If True, rebuilds the search index before searching.
     :return: A dictionary with search results, including top functions and relevant chunks.
     """
-    build_error = _build_index_if_needed(docs_path, force_rebuild=force_rebuild_index)
+    build_error = _build_index_if_needed(doc_paths, force_rebuild=force_rebuild_index)
     if build_error:
         return {"found": False, "error": build_error}
 
-    if not index_built:
+    if not indexed_paths:
         return {"found": False, "error": "Search index is not available or failed to build (reason unknown)."}
 
     try:
@@ -150,19 +154,19 @@ def semantic_search_capl_docs(
     name="get_capl_function_details",
     description="Retrieves the complete documentation for a specific CAPL function by its name."
 )
-def get_capl_function_details(function_name: str, docs_path: str = "./inputs") -> Dict[str, Any]:
+def get_capl_function_details(function_name: str, doc_paths: List[str] = ["./inputs"]) -> Dict[str, Any]:
     """
     Retrieves all available documentation details for a given CAPL function name.
 
     :param function_name: The exact name of the CAPL function.
-    :param docs_path: The directory where the documentation is located.
+    :param doc_paths: A list of directories where the documentation is located.
     :return: A dictionary containing the full documentation for the function.
     """
-    build_error = _build_index_if_needed(docs_path)
+    build_error = _build_index_if_needed(doc_paths)
     if build_error:
         return {"found": False, "error": build_error}
 
-    if not index_built:
+    if not indexed_paths:
         return {"found": False, "error": "Documentation index is not available."}
         
     # Use the search engine's helper to get all data for a function

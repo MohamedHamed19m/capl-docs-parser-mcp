@@ -47,7 +47,7 @@ Performs a semantic search across the entire CAPL documentation to find function
 **Parameters:**
 
 *   `query` (str): The natural language search query (e.g., "how to send an ethernet packet").
-*   `docs_path` (str, optional): The path to the documentation directory. Defaults to `./inputs`.
+*   `doc_paths` (List[str], optional): A list of paths to the documentation directories. Defaults to `["./inputs"]`.
 *   `top_k` (int, optional): The number of top matching results to return. Defaults to 5.
 *   `min_score` (float, optional): The minimum relevance score (between 0 and 1) for a result to be included. Defaults to 0.1.
 *   `force_rebuild_index` (bool, optional): If `True`, the server will delete the cache and rebuild the search index before performing the search. Defaults to `False`.
@@ -63,7 +63,7 @@ Retrieves the complete, structured documentation for a single, specific CAPL fun
 **Parameters:**
 
 *   `function_name` (str): The **exact** name of the CAPL function you want details for (e.g., `EthGetLinkStatus`).
-*   `docs_path` (str, optional): The path to the documentation directory. Defaults to `./inputs`.
+*   `doc_paths` (List[str], optional): A list of directories where the documentation is located. Defaults to `["./inputs"]`.
 
 **Returns:**
 
@@ -84,7 +84,15 @@ A dictionary containing the parsed `FunctionInfo` or an error message if parsing
 ## Best Practices
 
 *   **Use Specific Queries**: For `semantic_search_capl_docs`, more specific queries yield better results. For example, instead of "ethernet", try "get ethernet packet payload".
-another example `using semantic_search_capl_docs find a function Deletes a Consumed Service Instanc in capl`
+*   **Search Across Multiple Directories**: To search documentation spread across several directories, provide a list of paths to the `doc_paths` parameter. For instance, to search both the default `inputs` directory and an additional `new_database/CANoeIL` directory for functions controlling message sending in a simulation node:
+
+    ```python
+    semantic_search_capl_docs(
+        query="control the sending of a certain message of a simulation node",
+        doc_paths=["./inputs", "C:\\Users\\user\\Desktop\\test\\0_my_repo\\CAPL-Doc-Extractor\\new_database\\CANoeIL"]
+    )
+    ```
+    This search would likely identify functions like `ILNodeControlMsg`, which is designed to influence message sending for simulation nodes.
 *   **Use Exact Function Names**: When using `get_capl_function_details`, ensure the function name is spelled correctly and matches the name in the documentation exactly,
 or its better to search for specific name using semantic search then after that ask the ai about function details (syntax or examples) and it will pass the correct name.
 *   **Rebuild the Index When Needed**: If you have updated, added, or removed documentation files, you can either restart the server or use the `force_rebuild_index=True` parameter in your search query to ensure the index is up-to-date.
