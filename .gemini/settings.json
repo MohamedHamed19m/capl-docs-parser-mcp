@@ -3,7 +3,7 @@
     "vectorDoc_Server": {
       "command": "python",
       "args": ["MCP_Server.py"],
-      "cwd": "C:/Users/user/Desktop/test/python_learning/CAPL-Doc-Extractor",
+      "cwd": "c:/Users/user/Desktop/test/0_my_repo/CAPL-Doc-Extractor",
       "timeout": 30000,
       "trust": true
     }

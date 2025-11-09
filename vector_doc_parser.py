@@ -13,7 +13,6 @@ logging.basicConfig(
     format=LOG_FORMAT,
     handlers=[
         logging.FileHandler("vector_doc_parser.log", mode='w', encoding='utf-8'),
-        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("VectorDocParser")
