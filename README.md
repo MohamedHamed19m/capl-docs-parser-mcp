@@ -59,22 +59,16 @@ python main.py <file_path_or_directory>
 
 ## Project Structure
 - `main.py` — Entry point for the parser (CLI and importable)
-- `MCP_Server.py` — Hosts the parsing logic as an MCP server.
+- `MCP_Server.py` — Hosts the parsing logic as an MCP (Model Context Protocol) server.
 - `inputs/` — Example input files (Markdown)
 - `README.md` — This documentation
+- `README_MCP.md` — Detailed documentation for the MCP server.
 
 ## MCP Server
 
-The `MCP_Server.py` file hosts the documentation parsing logic as a `FastMCP` server, allowing the functionality to be accessed as a remote tool.
+This project includes an MCP (Model Context Protocol) server that exposes the documentation parsing and search functionality as a set of tools for AI agents.
 
-### Functionality
-
-The server provides tools for searching and parsing Vector CAPL documentation from Markdown files. It uses the `VectorDocParser` from `main.py` to extract structured information.
-
-### Tools
-
-- **`search_capl_function_docs`**: Searches a directory for Markdown files matching a function name, parses them, and returns structured information for the matches.
-- **`parse_md_file`**: Parses a single specified Markdown file and returns its structured content.
+For detailed information on how to use the MCP server, its available tools, and how to connect to it, please see `README_MCP.md`.
  
  
 📘 Example CAPL Documentation

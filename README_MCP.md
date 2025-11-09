@@ -2,7 +2,7 @@
 
 ## Overview
 
-This MCP (Multi-purpose Cooperative Process) server provides a powerful interface to search and retrieve information from a local repository of Vector CAPL (Communication Access Programming Language) documentation. It is designed to work with documentation written in Markdown (`.md`) format.
+This MCP (Model Context Protocol) server provides a powerful interface to search and retrieve information from a local repository of Vector CAPL (Communication Access Programming Language) documentation. It is designed to work with documentation written in Markdown (`.md`) format.
 
 The server indexes the entire documentation and allows for intelligent, natural language queries to find relevant CAPL functions, their syntax, parameters, and usage examples, making it an invaluable tool for developers working with Vector tools like CANoe.
 
@@ -84,7 +84,9 @@ A dictionary containing the parsed `FunctionInfo` or an error message if parsing
 ## Best Practices
 
 *   **Use Specific Queries**: For `semantic_search_capl_docs`, more specific queries yield better results. For example, instead of "ethernet", try "get ethernet packet payload".
-*   **Use Exact Function Names**: When using `get_capl_function_details`, ensure the function name is spelled correctly and matches the name in the documentation exactly.
+another example `using semantic_search_capl_docs find a function Deletes a Consumed Service Instanc in capl`
+*   **Use Exact Function Names**: When using `get_capl_function_details`, ensure the function name is spelled correctly and matches the name in the documentation exactly,
+or its better to search for specific name using semantic search then after that ask the ai about function details (syntax or examples) and it will pass the correct name.
 *   **Rebuild the Index When Needed**: If you have updated, added, or removed documentation files, you can either restart the server or use the `force_rebuild_index=True` parameter in your search query to ensure the index is up-to-date.
 *   **Check the Logs**: The server logs its operations to the console and to `vector_doc_parser.log`. If you encounter unexpected behavior, these logs are the first place to look for clues.
 *   **Organize Your Documentation**: Keeping your `.md` files in a well-organized directory structure within `inputs` will not affect the server's functionality but will make your project easier to maintain.
