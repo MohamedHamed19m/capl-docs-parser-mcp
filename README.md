@@ -1,9 +1,34 @@
 # Vector Documentation Parser
 
-A Python package for extracting structured function information from Vector (CAPL) documentation in Markdown format.
+A Python package for extracting structured function information from Vector (CAPL) documentation in Markdown format and MCP Server to utilize this parser and offering tools for AI agents.
 
 ## Overview
-This tool parses Vector documentation files (such as CAPL function docs) and extracts detailed function information into structured Python class objects. It automates the process of converting Markdown-based documentation into data that can be further processed, analyzed, or integrated into other systems.
+This tool parses Vector documentation files (such as CAPL function md docs) and extracts detailed function information into structured Python class objects. It automates the process of converting Markdown-based documentation into data that can be further processed, analyzed, or integrated into other systems.
+
+## Setup
+
+This project includes a setup script (`setup_mcp.py`) to manage the MCP server configuration, allowing for both local (project-specific) and global installations in gemini settings.json (in future will support other agents like claude).
+
+**Usage:**
+
+```bash
+# Install globally (checks existing config, appends or overwrites)
+python setup_mcp.py install --global
+
+# Install locally for this project only
+python setup_mcp.py install --local
+
+# Check current status of both local and global configs
+python setup_mcp.py status
+
+# Remove from global config (keeps other servers)
+python setup_mcp.py uninstall --global
+
+# Remove local config completely
+python setup_mcp.py uninstall --local
+```
+
+Run `python setup_mcp.py --help` for more details on commands and options.
 
 ## Features
 - **Comprehensive Markdown Parsing**: Extracts function names, multiple syntax forms, descriptions, parameters, return values, code examples, and "Valid for" information.
@@ -58,17 +83,22 @@ python main.py <file_path_or_directory>
 - Structured Python objects containing all extracted information, ready for further processing or integration.
 
 ## Project Structure
-- `main.py` — Entry point for the parser (CLI and importable)
-- `MCP_Server.py` — Hosts the parsing logic as an MCP (Model Context Protocol) server.
-- `inputs/` — Example input files (Markdown)
-- `README.md` — This documentation
-- `README_MCP.md` — Detailed documentation for the MCP server.
+- `main.py`          — Entry point for the parser (CLI and importable)
+- `MCP_Server.py`    — Hosts the parsing logic as an MCP server for Gemini.
+- `setup_mcp.py`     — Setup script to configure the MCP server.
+- `src/`             — Core Python source code for parsing and searching.
+- `docs/`            — Detailed documentation files.
+- `inputs/`          — Example input Markdown files.
+- `README.md`        — This file.
 
-## MCP Server
+## Documentation
 
 This project includes an MCP (Model Context Protocol) server that exposes the documentation parsing and search functionality as a set of tools for AI agents.
 
-For detailed information on how to use the MCP server, its available tools, and how to connect to it, please see `README_MCP.md`.
+For more details, see the documentation below:
+
+- **[MCP Usage Guide (docs/MCP_Usage.md)](docs/MCP_Usage.md)**: Explains when and why to use this MCP server.
+- **[MCP Server Details (docs/README_MCP.md)](docs/README_MCP.md)**: Provides detailed information on the server's tools and how to connect to it.
  
  
 📘 Example CAPL Documentation

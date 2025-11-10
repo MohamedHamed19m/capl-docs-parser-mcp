@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 import logging
-from vector_doc_parser import VectorDocParser, parse_directory
+from src.vector_doc_parser import VectorDocParser, parse_directory
 
 # Get the logger from the parser module
 logger = logging.getLogger("VectorDocParser")

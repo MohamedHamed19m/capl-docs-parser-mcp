@@ -6,8 +6,8 @@ import logging
 from fastmcp import FastMCP
 
 # Core components from local modules
-from vector_doc_parser import VectorDocParser, FunctionInfo, parse_directory
-from minimal_semantic_search import MinimalCAPLSearch
+from src.vector_doc_parser import VectorDocParser, FunctionInfo, parse_directory
+from src.minimal_semantic_search import MinimalCAPLSearch
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -1,0 +1,3 @@
+# Cache and logs
+.cache/
+*.log

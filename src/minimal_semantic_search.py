@@ -14,7 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 # Import your existing parser
-from vector_doc_parser import VectorDocParser, parse_directory, FunctionInfo
+from .vector_doc_parser import VectorDocParser, parse_directory, FunctionInfo
 
 
 class MinimalCAPLSearch:
