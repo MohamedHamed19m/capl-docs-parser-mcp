@@ -30,6 +30,42 @@ python setup_mcp.py uninstall --local
 
 Run `python setup_mcp.py --help` for more details on commands and options.
 
+### Environment Setup with `uv`
+
+This project uses `uv` for efficient dependency management and virtual environment creation.
+
+1.  **Create Virtual Environment:**
+    ```bash
+    uv venv
+    ```
+
+2.  **Activate Environment:**
+    -   macOS/Linux:
+        ```bash
+        source .venv/bin/activate
+        ```
+    -   Windows (PowerShell):
+        ```bash
+        .venv\Scripts\Activate.ps1
+        ```
+
+3.  **Synchronize Dependencies and Create Lock File:**
+    ```bash
+    uv sync
+    ```
+    This command reads `pyproject.toml`, creates `uv.lock` (if it doesn't exist), and installs dependencies into `.venv`. Commit `uv.lock` to Git.
+
+5.  **Regenerate Lock File:**
+    If `pyproject.toml` is manually changed or branches are switched:
+    ```bash
+    uv lock
+    ```
+
+6.  **Deactivate Environment:**
+    ```bash
+    deactivate
+    ```
+
 ## Features
 - **Comprehensive Markdown Parsing**: Extracts function names, multiple syntax forms, descriptions, parameters, return values, code examples, and "Valid for" information.
 - **Structured Output**: Stores all extracted data in well-defined Python dataclasses (`FunctionInfo`, `Parameter`).
