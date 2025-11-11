@@ -2,7 +2,7 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import logging
-
+import asyncio
 from fastmcp import FastMCP
 
 # Core components from local modules
@@ -24,7 +24,7 @@ mcp = FastMCP("VectorDocExtractorServer")
 search_engine = MinimalCAPLSearch(cache_dir=".cache")
 indexed_paths: set = set()
 
-def _build_index_if_needed(doc_paths: List[str] = ["./inputs"], force_rebuild: bool = False) -> Optional[str]:
+async def _build_index_if_needed(doc_paths: List[str] = ["./inputs"], force_rebuild: bool = False) -> Optional[str]:
     """
     Builds the search index from a list of markdown directories. Returns an error string on failure.
     """
@@ -45,7 +45,8 @@ def _build_index_if_needed(doc_paths: List[str] = ["./inputs"], force_rebuild: b
                     logger.error(err)
                     return err
 
-                parsed_docs = parse_directory(str(base_path))
+                # Run Blocking I/O in a spearate  thread to avoid blocking the event loop
+                parsed_docs = await asyncio.to_thread(parse_directory, str(base_path))
                 if parsed_docs:
                     all_parsed_docs.extend(parsed_docs)
 
@@ -53,7 +54,8 @@ def _build_index_if_needed(doc_paths: List[str] = ["./inputs"], force_rebuild: b
                 logger.warning("No documents were parsed across all paths. The index will be empty.")
 
             # Force rebuild in the engine since we are creating a new combined index
-            search_engine.build_index(all_parsed_docs, force_rebuild=True)
+            # Run blocking index in a separate thread
+            await asyncio.to_thread(search_engine.build_index, all_parsed_docs, force_rebuild=True)
             indexed_paths = requested_paths
             logger.info("✅ Search index built successfully.")
             return None
@@ -90,7 +92,7 @@ def function_info_to_dict(fi: FunctionInfo) -> Dict[str, Any]:
     name="semantic_search_capl_docs",
     description="Performs a semantic search on Vector CAPL documentation. Finds relevant functions and documentation snippets based on a natural language query."
 )
-def semantic_search_capl_docs(
+async def semantic_search_capl_docs(
     query: str,
     doc_paths: List[str] = ["./inputs"],
     top_k: int = 5,
@@ -108,7 +110,7 @@ def semantic_search_capl_docs(
     :param force_rebuild_index: If True, rebuilds the search index before searching.
     :return: A dictionary with search results, including top functions and relevant chunks.
     """
-    build_error = _build_index_if_needed(doc_paths, force_rebuild=force_rebuild_index)
+    build_error = await _build_index_if_needed(doc_paths, force_rebuild=force_rebuild_index)
     if build_error:
         return {"found": False, "error": build_error}
 
@@ -117,13 +119,14 @@ def semantic_search_capl_docs(
 
     try:
         # Search for the most relevant chunks of documentation
-        results = search_engine.search(query, top_k=top_k, min_score=min_score)
+        results = await asyncio.to_thread(search_engine.search, query, top_k=top_k, min_score=min_score)
 
         if not results:
             return {"found": False, "results": [], "message": f"No relevant documentation found for '{query}'."}
 
         # Also, find the top function names related to the query
-        top_functions = search_engine.search_functions(query, top_k=3)
+        # top_functions = search_engine.search_functions(query, top_k=3)
+        top_functions = await asyncio.to_thread(search_engine.search_functions, query, top_k=3)
 
         # Format results for clear output
         formatted_chunks = [
@@ -154,7 +157,7 @@ def semantic_search_capl_docs(
     name="get_capl_function_details",
     description="Retrieves the complete documentation for a specific CAPL function by its name."
 )
-def get_capl_function_details(function_name: str, doc_paths: List[str] = ["./inputs"]) -> Dict[str, Any]:
+async def get_capl_function_details(function_name: str, doc_paths: List[str] = ["./inputs"]) -> Dict[str, Any]:
     """
     Retrieves all available documentation details for a given CAPL function name.
 
@@ -162,7 +165,7 @@ def get_capl_function_details(function_name: str, doc_paths: List[str] = ["./inp
     :param doc_paths: A list of directories where the documentation is located.
     :return: A dictionary containing the full documentation for the function.
     """
-    build_error = _build_index_if_needed(doc_paths)
+    build_error = await _build_index_if_needed(doc_paths)
     if build_error:
         return {"found": False, "error": build_error}
 
@@ -170,7 +173,7 @@ def get_capl_function_details(function_name: str, doc_paths: List[str] = ["./inp
         return {"found": False, "error": "Documentation index is not available."}
         
     # Use the search engine's helper to get all data for a function
-    context = search_engine.get_function_context(function_name)
+    context = await asyncio.to_thread(search_engine.get_function_context, function_name)
 
     if not context.get('description') and not context.get('syntax_forms'):
         return {"found": False, "message": f"No details found for function: {function_name}"}
@@ -185,7 +188,7 @@ def get_capl_function_details(function_name: str, doc_paths: List[str] = ["./inp
     name="parse_md_file",
     description="Parses a single Vector CAPL documentation Markdown file and returns detailed function info as JSON. This is a low-level tool."
 )
-def parse_md_file(file_path: str) -> Dict[str, Any]:
+async def parse_md_file(file_path: str) -> Dict[str, Any]:
     """
     Parse a single markdown file and return the FunctionInfo as dict (or error).
     """
@@ -195,7 +198,7 @@ def parse_md_file(file_path: str) -> Dict[str, Any]:
 
     parser = VectorDocParser()
     try:
-        fi = parser.parse_file(str(p))
+        fi = await asyncio.to_thread(parser.parse_file, str(p))
         if fi:
             return {"file": str(p), "parsed": function_info_to_dict(fi)}
         else:
@@ -210,5 +213,6 @@ def parse_md_file(file_path: str) -> Dict[str, Any]:
 if __name__ == "__main__":
     logger.info("Starting MCP server...")
     # Pre-build the index on startup for faster first-time searches
-    _build_index_if_needed()
+    asyncio.run(_build_index_if_needed())
+
     mcp.run()

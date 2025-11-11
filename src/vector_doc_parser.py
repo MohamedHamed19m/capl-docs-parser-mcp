@@ -182,6 +182,13 @@ class VectorDocParser:
                                 clean_line = clean_line.strip('`')
                             syntax_buffer.append(clean_line)
                             logger.debug(f"Added bullet point syntax: {clean_line}")
+                    
+                    # handle syntax on a single line in a code span
+                    elif line.strip().startswith('`') and line.strip().endswith('`'):
+                        syntax_text = line.strip().strip('`')
+                        if syntax_text and '(' in syntax_text:
+                            syntax_buffer.append(syntax_text)
+                            logger.debug(f"Added standalone code syntax: {syntax_text}")
 
                     # Markdown link style or bracketed text: [syntax](url) or [syntax]
                     else:
