@@ -53,7 +53,7 @@ def create_mcp_server_config(project_root, server_name='vectorDoc_Server'):
     """Create MCP server configuration entry"""
     server_config = {
         "command": "python",
-        "args": ["MCP_Server.py"],
+        "args": ["mcp_app/MCP_Server.py"],
         "cwd": str(project_root),
         "timeout": 30000,
         "trust": True
@@ -91,7 +91,7 @@ def install_local():
     print(f"\n✅ Local MCP configuration installed!")
     print(f"📍 Config location: {config_path}")
     print(f"📂 Project root: {project_root}")
-    print(f"🚀 MCP Server: MCP_Server.py")
+    print(f"🚀 MCP Server: mcp_app/MCP_Server.py")
     print(f"📋 Total servers in config: {len(config['mcpServers'])}")
 
 
@@ -205,7 +205,7 @@ def show_status():
     project_root = get_project_root()
     print(f"\n📂 Project Root: {project_root}")
     
-    mcp_server_path = project_root / 'MCP_Server.py'
+    mcp_server_path = project_root / 'mcp_app' / 'MCP_Server.py'
     if mcp_server_path.exists():
         print(f"🐍 MCP Server: ✅ {mcp_server_path.name}")
     else:

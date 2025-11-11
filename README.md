@@ -120,8 +120,9 @@ python main.py <file_path_or_directory>
 
 ## Project Structure
 - `main.py`          — Entry point for the parser (CLI and importable)
-- `MCP_Server.py`    — Hosts the parsing logic as an MCP server for Gemini.
 - `setup_mcp.py`     — Setup script to configure the MCP server.
+- `mcp_app/`         — Contains the MCP server application.
+  - `MCP_Server.py`  — Hosts the parsing logic as an MCP server for Gemini.
 - `src/`             — Core Python source code for parsing and searching.
 - `docs/`            — Detailed documentation files.
 - `inputs/`          — Example input Markdown files.

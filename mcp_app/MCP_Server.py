@@ -1,9 +1,13 @@
 # mcp_server.py
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import logging
 import asyncio
 from fastmcp import FastMCP
+
+# Add project root to sys.path to allow imports from src
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Core components from local modules
 from src.vector_doc_parser import VectorDocParser, FunctionInfo, parse_directory
