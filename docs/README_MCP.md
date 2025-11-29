@@ -42,19 +42,18 @@ The server provides the following tools:
 
 ### 1. `semantic_search_capl_docs`
 
-Performs a semantic search across the entire CAPL documentation to find functions and snippets that are most relevant to a natural language query.
+Finds and ranks relevant CAPL function names based on a natural language query.
 
 **Parameters:**
 
 *   `query` (str): The natural language search query (e.g., "how to send an ethernet packet").
 *   `doc_paths` (List[str], optional): A list of paths to the documentation directories. Defaults to `["./inputs"]`.
-*   `top_k` (int, optional): The number of top matching results to return. Defaults to 5.
-*   `min_score` (float, optional): The minimum relevance score (between 0 and 1) for a result to be included. Defaults to 0.1.
+*   `top_k` (int, optional): The number of top matching functions to return. Defaults to `20`.
 *   `force_rebuild_index` (bool, optional): If `True`, the server will delete the cache and rebuild the search index before performing the search. Defaults to `False`.
 
 **Returns:**
 
-A dictionary containing the search results, including the most relevant function names and the specific documentation chunks that matched the query.
+A dictionary with a ranked list of relevant function names and their scores.
 
 ### 2. `get_capl_function_details`
 

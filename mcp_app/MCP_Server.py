@@ -94,25 +94,23 @@ def function_info_to_dict(fi: FunctionInfo) -> Dict[str, Any]:
 # -------------------------
 @mcp.tool(
     name="semantic_search_capl_docs",
-    description="Performs a semantic search on Vector CAPL documentation. Finds relevant functions and documentation snippets based on a natural language query."
+    description="Finds and ranks relevant CAPL function names based on a natural language query."
 )
 async def semantic_search_capl_docs(
     query: str,
     doc_paths: List[str] = ["./inputs"],
-    top_k: int = 5,
-    min_score: float = 0.1,
+    top_k: int = 20,
     force_rebuild_index: bool = False
 ) -> Dict[str, Any]:
     """
-    Performs semantic search over CAPL documentation to find functions and snippets
-    that are most relevant to the user's query.
+    Performs semantic search over CAPL documentation to find the most relevant
+    function names for the user's query.
 
     :param query: Natural language search query (e.g., "how to send a CAN message").
     :param doc_paths: A list of directories containing .md files to search and index.
-    :param top_k: The number of top matching chunks to return.
-    :param min_score: The minimum relevance score for a result to be included.
+    :param top_k: The number of top matching functions to return.
     :param force_rebuild_index: If True, rebuilds the search index before searching.
-    :return: A dictionary with search results, including top functions and relevant chunks.
+    :return: A dictionary with a ranked list of relevant function names and their scores.
     """
     build_error = await _build_index_if_needed(doc_paths, force_rebuild=force_rebuild_index)
     if build_error:
@@ -122,32 +120,22 @@ async def semantic_search_capl_docs(
         return {"found": False, "error": "Search index is not available or failed to build (reason unknown)."}
 
     try:
-        # Search for the most relevant chunks of documentation
-        results = await asyncio.to_thread(search_engine.search, query, top_k=top_k, min_score=min_score)
+        # Find the top function names related to the query
+        top_functions = await asyncio.to_thread(search_engine.search_functions, query, top_k=top_k)
 
-        if not results:
-            return {"found": False, "results": [], "message": f"No relevant documentation found for '{query}'."}
-
-        # Also, find the top function names related to the query
-        # top_functions = search_engine.search_functions(query, top_k=3)
-        top_functions = await asyncio.to_thread(search_engine.search_functions, query, top_k=3)
+        if not top_functions:
+            return {"found": False, "results": [], "message": f"No relevant functions found for '{query}'."}
 
         # Format results for clear output
-        formatted_chunks = [
-            {
-                "function_name": chunk['function_name'],
-                "type": chunk['type'],
-                "text": chunk['text'],
-                "score": score,
-            }
-            for chunk, score in results
+        formatted_results = [
+            {"function_name": name, "score": score}
+            for name, score in top_functions
         ]
 
         return {
             "found": True,
             "query": query,
-            "top_functions": top_functions,
-            "best_chunks": formatted_chunks,
+            "results": formatted_results,
         }
     except Exception as e:
         logger.error(f"Error during semantic search for query '{query}': {e}", exc_info=True)

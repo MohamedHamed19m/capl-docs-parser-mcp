@@ -224,25 +224,26 @@ class MinimalCAPLSearch:
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:top_k]
     
-    def search_functions(self, query: str, top_k: int = 3) -> List[str]:
+    def search_functions(self, query: str, top_k: int = 3) -> List[Tuple[str, float]]:
         """
         Search for relevant CAPL functions.
-        Returns list of unique function names.
+        Returns a list of unique function names and their highest relevance score.
         """
-        results = self.search(query, top_k=top_k * 2, min_score=0.05)
-        
-        # Deduplicate by function name
-        seen = set()
-        functions = []
+        # Search a larger number of chunks to ensure we find enough unique functions
+        results = self.search(query, top_k=top_k * 3, min_score=0.05)
+
+        # Use a dictionary to store the highest score for each function
+        function_scores = {}
         for chunk, score in results:
             func_name = chunk['function_name']
-            if func_name not in seen:
-                seen.add(func_name)
-                functions.append(func_name)
-                if len(functions) >= top_k:
-                    break
-        
-        return functions
+            if func_name not in function_scores or score > function_scores[func_name]:
+                function_scores[func_name] = score
+
+        # Sort the functions by score in descending order
+        sorted_functions = sorted(function_scores.items(), key=lambda item: item[1], reverse=True)
+
+        # Return the top k results
+        return sorted_functions[:top_k]
     
     def get_function_context(self, function_name: str) -> Dict[str, Any]:
         """
